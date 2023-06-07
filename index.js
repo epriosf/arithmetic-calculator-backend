@@ -9,6 +9,7 @@ const corsOptions = require('./config/cors');
 const connectDB = require('./config/database');
 const credentials = require('./middleware/credentials');
 const errorHandlerMiddleware = require('./middleware/error_handler');
+const authenticationMiddleware = require('./middleware/authentication')
 
 const app = express();
 const PORT = 3500;
@@ -26,6 +27,8 @@ app.use(express.json());
 //middleware for cookies
 app.use(cookieParser());
 
+app.use(authenticationMiddleware);
+
 //static files
 app.use('/static', express.static(path.join(__dirname, 'public')));
 
@@ -36,7 +39,7 @@ app.use(errorHandlerMiddleware);
 app.use('/api/auth', require('./routes/api/auth'));
 
 app.all('*', (req, res) => {
-    res.status(400);
+    res.status(404);
     if (req.accepts('json')) {
         res.json({ 'error': '404 Not Found' });
     }
@@ -48,4 +51,4 @@ app.all('*', (req, res) => {
 mongoose.connection.once('open', () => {
     console.log('DB connected...');
     app.listen(PORT, () => { console.log(`Listening on port ${PORT}`) });
-})
+});

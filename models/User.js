@@ -21,7 +21,7 @@ const UserSchema = Schema(
         },
         status: {
             type: String,
-            required: true
+            required: false
         },
         refresh_token: String
     },
