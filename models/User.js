@@ -23,6 +23,10 @@ const UserSchema = Schema(
             type: String,
             required: false
         },
+        user_balance: {
+            type: String,
+            required: false
+        },
         refresh_token: String
     },
 );
