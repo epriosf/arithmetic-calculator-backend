@@ -1,6 +1,7 @@
 const axios = require('axios');
 const Operation = require('../models/Operation');
 const User = require('../models/User');
+const math = require('mathjs');
 
 async function randomString(req, res) {
   const { userBalance, username, type } = req.body;
@@ -36,7 +37,6 @@ async function randomString(req, res) {
     });
     const randomString = response.data.result.random.data[0]; // Extract the generated random string
     const userBalanceUpdated = (parseFloat(userBalance) - parseFloat(operation.cost)).toString();
-    console.log(userBalanceUpdated, 'userBalance');
     try {
       await User.findOneAndUpdate(
         { username: username },
@@ -56,7 +56,64 @@ async function randomString(req, res) {
 }
 
 async function mathOperation(req, res) {
-  const user = req.body;
-  return res.status(200).json(user);
+  try {
+    const { mathExpression, username } = req.body;
+
+    const mathOperationsPattern = /[\+\-\*\/]|sqrt/g;
+    const operators = mathExpression.match(mathOperationsPattern);
+
+    const operations = await findOperations(operators);
+    const user = await findUser(username);
+
+    if (operations.length === 0) {
+      return res.status(400).json({ message: 'No matching operations found' });
+    }
+
+    const totalCost = calculateTotalCost(operations);
+
+    if (parseFloat(user.user_balance) < totalCost) {
+      return res.status(400).json({ message: 'The user has insufficient credit' });
+    }
+
+    if (user.user_balance) {
+      await updateUserBalance(user.username, user.user_balance, totalCost);
+    }
+
+    const result = math.evaluate(mathExpression);
+    res.json({ result });
+  } catch (error) {
+    console.error('Error:', error.message);
+    if (error.message === 'User not found') {
+      return res.status(400).json({ message: 'User not found' });
+    }
+    return res.status(500).json({ error: 'Failed to calculate math expression' });
+  }
 }
+async function findOperations(operators) {
+  const operations = await Operation.find({ type: { $in: operators } });
+  return operations;
+}
+async function findUser(username) {
+  const user = await User.findOne({ username }).select('-password -refresh_token -status -__v');;
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return user;
+}
+async function updateUserBalance(username, userBalance, totalCost) {
+  const user = await User.findOneAndUpdate(
+    { username: username },
+    { $set: { user_balance: userBalance - totalCost } },
+    { new: true, lean: true }
+  );
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return user;
+}
+
+function calculateTotalCost(operations) {
+  return operations.reduce((acc, operation) => acc + parseFloat(operation.cost), 0);
+}
+
 module.exports = { mathOperation, randomString };
