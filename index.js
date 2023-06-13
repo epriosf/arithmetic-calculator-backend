@@ -37,7 +37,7 @@ app.use(errorHandlerMiddleware);
 
 //Routes
 app.use('/api/auth', require('./routes/api/auth'));
-
+app.use('/api/operation', require('./routes/api/operation'));
 app.all('*', (req, res) => {
     res.status(404);
     if (req.accepts('json')) {

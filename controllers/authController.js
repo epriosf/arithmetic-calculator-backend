@@ -30,13 +30,13 @@ async function login(req, res) {
     const { username, password} = req.body;
 
     if (!username || !password) {
-        return res.status(422).json({ 'message': 'invalid user fields' });
+        return res.status(422).json({ message: 'invalid user fields' });
     }
 
     const user = await User.findOne({ username });
 
     if (!user) {
-        return res.sendstatus(401);
+        return res.sendStatus(401);
     }
     const match = await bcrypt.compare(password, user.password);
 
