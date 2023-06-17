@@ -13,11 +13,11 @@ const RecordSchema = Schema(
             required: true,
         },
         amount: {
-            type: String,
+            type: Number,
             required: true
         },
         user_balance: {
-            type: String,
+            type: Number,
             required: true
         },
         operation_response: {
