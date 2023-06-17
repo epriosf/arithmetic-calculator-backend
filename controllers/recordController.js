@@ -18,22 +18,28 @@ async function createRecord(req, res) {
 
 async function findRecordsByUserId(req, res) {
     try {
-        const userIdString = req.params.user_id;
-        const page = req.query.page ? parseInt(req.query.page) : 0;
-        const limit = req.query.limit ? parseInt(req.query.limit) : 5;
-        const sortField = req.query.sortField ? req.query.sortField : '_id';
-        const sortOrder = req.query.sortOrder ? parseInt(req.query.sortOrder) : 1;
+        const { user_id } = req.params;
+        const page = parseInt(req.query.page) || 0;
+        const limit = parseInt(req.query.limit) || 5;
+        const sortField = req.query.sortField || '_id';
+        const sortOrder = parseInt(req.query.sortOrder) || 1;
         const sortOptions = {};
-        if (sortField && sortOptions) {
+
+        if (sortField) {
             sortOptions[sortField] = sortOrder === 1 ? 1 : -1;
         }
 
-        const user_id = new mongoose.Types.ObjectId(userIdString);
+        const userId = new mongoose.Types.ObjectId(user_id);
 
-        const records = await Record.find({ user_id: user_id, is_deleted: false }).sort(sortOptions).limit(limit).skip(limit * page);
+        const records = await Record.find({ user_id: userId, is_deleted: false })
+            .sort(sortOptions)
+            .limit(limit)
+            .skip(limit * page);
+
         const total_records = await Record.countDocuments({ is_deleted: false });
+
         if (!records && !total_records) {
-            return res.sendStatus(400).json({ message: 'Records not found' });
+            return res.status(400).json({ message: 'Records not found' });
         }
         res.json({ records, total_records });
     }
