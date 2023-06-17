@@ -23,20 +23,36 @@ async function findRecordsByUserId(req, res) {
         const limit = parseInt(req.query.limit) || 5;
         const sortField = req.query.sortField || '_id';
         const sortOrder = parseInt(req.query.sortOrder) || 1;
-        const sortOptions = {};
+        const searchText = req.query.searchText || '';
 
-        if (sortField) {
-            sortOptions[sortField] = sortOrder === 1 ? 1 : -1;
-        }
+        const sortOptions = {
+            [sortField]: sortOrder === 1 ? 1 : -1
+        };
 
         const userId = new mongoose.Types.ObjectId(user_id);
 
-        const records = await Record.find({ user_id: userId, is_deleted: false })
+        const query = {
+            user_id: userId,
+            is_deleted: false,
+        }
+        if (searchText) {
+            const stringOrConditions = [
+                { operation_response: { $regex: searchText, $options: 'i' } },
+            ];
+            const numericOrConditions = [
+                { amount: { $eq: parseInt(searchText) } },
+                { user_balance: { $eq: parseInt(searchText) } },
+            ];
+
+            query.$or = isNaN(parseInt(searchText)) ? stringOrConditions : numericOrConditions;
+        }
+
+        const records = await Record.find(query)
             .sort(sortOptions)
             .limit(limit)
             .skip(limit * page);
 
-        const total_records = await Record.countDocuments({ is_deleted: false });
+        const total_records = searchText ? records.length : await Record.countDocuments({ is_deleted: false });
 
         if (!records && !total_records) {
             return res.status(400).json({ message: 'Records not found' });
