@@ -1,26 +1,18 @@
 const axios = require('axios');
 const Operation = require('../models/Operation');
-const User = require('../models/User');
 const math = require('mathjs');
+const { findUserByUsername, findUserAndUpdateBalance } = require('./userController');
 
-async function randomString(req, res) {
-  const { userBalance, username, type } = req.body;
-  let operation;
+const randomString = async (req, res) => {
   try {
-    operation = await Operation.findOne({ type: type });
-    if (!operation) {
-      return res.sendStatus(400).json({ message: 'Not Math Operation found in DB' });
+    const { username, type } = req.body;
+    const operation = await findOperation(type);
+    const user = await findUserByUsername(username);
+
+    if (user.user_balance < operation.cost) {
+      return res.status(400).json({ message: 'The user has no credit' })
     }
-  }
-  catch (error) {
-    console.error('Error:', error.message);
-    return res.status(500).json({ error: 'Failed to retrieve operation' });
-  }
 
-  if (parseFloat(userBalance) < parseFloat(operation.cost)) {
-    return res.status(400).json({ message: 'The user has no credit' })
-  }
-  try {
     const response = await axios.post('https://api.random.org/json-rpc/2/invoke', {
       headers: {
         'Content-Type': 'application/json'
@@ -36,26 +28,19 @@ async function randomString(req, res) {
       id: 1,
     });
     const randomString = response.data.result.random.data[0]; // Extract the generated random string
-    const userBalanceUpdated = (parseFloat(userBalance) - parseFloat(operation.cost)).toString();
-    try {
-      await User.findOneAndUpdate(
-        { username: username },
-        { $set: { user_balance: userBalanceUpdated } },
-        { new: true }
-      ).select({ password: 0, refresh_token: 0, status: 0, __v: 0 });
-    } catch (error) {
-      console.error('Error updating user:', error);
-      return res.status(500).json({ error: 'Failed to update the user info' });
-    }
-    res.json({ randomString });
 
-  } catch (error) {
-    console.error('Error:', error.message);
-    return res.status(500).json({ error: 'Failed to generate random string' });
+    const userBalanceUpdated = (user.user_balance - operation.cost);
+    await findUserAndUpdateBalance(user.username, userBalanceUpdated);
+    res.json({ randomString });
+  }
+  catch (error) {
+    const errorObject = handleOperationError(error);
+
+    return res.status(errorObject.status).json({ message: errorObject.message });
   }
 }
 
-async function mathOperation(req, res) {
+const mathOperation = async (req, res) => {
   try {
     const { mathExpression, username } = req.body;
 
@@ -63,7 +48,7 @@ async function mathOperation(req, res) {
     const operators = mathExpression.match(mathOperationsPattern);
 
     const operations = await findOperations(operators);
-    const user = await findUser(username);
+    const user = await findUserByUsername(username);
 
     if (operations.length === 0) {
       return res.status(400).json({ message: 'No matching operations found' });
@@ -71,49 +56,79 @@ async function mathOperation(req, res) {
 
     const totalCost = calculateTotalCost(operations);
 
-    if (parseFloat(user.user_balance) < totalCost) {
+    if (user.user_balance < totalCost) {
       return res.status(400).json({ message: 'The user has insufficient credit' });
     }
-
-    if (user.user_balance) {
-      await updateUserBalance(user.username, user.user_balance, totalCost);
-    }
-
     const result = math.evaluate(mathExpression);
+    const userBalanceUpdated = (user.user_balance - totalCost);
+    await findUserAndUpdateBalance(user.username, userBalanceUpdated);
     res.json({ result });
   } catch (error) {
-    console.error('Error:', error.message);
-    if (error.message === 'User not found') {
-      return res.status(400).json({ message: 'User not found' });
-    }
-    return res.status(500).json({ error: 'Failed to calculate math expression' });
+    const errorObject = handleOperationError(error, 'math');
+
+    return res.status(errorObject.status).json({ message: errorObject.message });
   }
-}
-async function findOperations(operators) {
-  const operations = await Operation.find({ type: { $in: operators } });
-  return operations;
-}
-async function findUser(username) {
-  const user = await User.findOne({ username }).select('-password -refresh_token -status -__v');;
-  if (!user) {
-    throw new Error('User not found');
-  }
-  return user;
-}
-async function updateUserBalance(username, userBalance, totalCost) {
-  const user = await User.findOneAndUpdate(
-    { username: username },
-    { $set: { user_balance: userBalance - totalCost } },
-    { new: true, lean: true }
-  );
-  if (!user) {
-    throw new Error('User not found');
-  }
-  return user;
 }
 
-function calculateTotalCost(operations) {
+const findOperations = async (operators) => {
+  try {
+    const operations = await Operation.find({ type: { $in: operators } });
+    return operations;
+  }
+  catch (error) {
+    throw new Error('Failed to find Operations');
+  }
+}
+
+const findOperation = async (type) => {
+  try {
+    const operation = await Operation.findOne({ type: type });
+    return operation;
+  }
+  catch (error) {
+    throw new Error('Failed to find Operation');
+  }
+
+}
+
+const calculateTotalCost = (operations) => {
   return operations.reduce((acc, operation) => acc + parseFloat(operation.cost), 0);
+}
+
+const handleOperationError = (error, type) => {
+  console.error('Error:', error.message);
+  let errorObject;
+  const errorMessages = {
+    'User not found': {
+      message: 'User not found',
+      status: 400,
+    },
+    'Failed to update user balance': {
+      message: 'Failed to update user balance',
+      status: 400,
+    },
+  };
+  if (type === 'math') {
+    errorMessages['Failed to find Operations'] = {
+      message: 'Failed to find Operations',
+      status: 400,
+    };
+    errorObject = errorMessages[error.message] || {
+      message: 'Failed to calculate math Expression',
+      status: 500,
+    };
+  }
+  else {
+    errorMessages['Failed to find Operation'] = {
+      message: 'Failed to find Operation',
+      status: 400,
+    };
+    errorObject = errorMessages[error.message] || {
+      message: 'Failed to generate random string',
+      status: 500,
+    };
+  }
+  return errorObject;
 }
 
 module.exports = { mathOperation, randomString };

@@ -36,9 +36,9 @@ app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use(errorHandlerMiddleware);
 
 //Routes
-app.use('/api/auth', require('./routes/api/auth'));
-app.use('/api/operation', require('./routes/api/operation'));
-app.use('/api/records', require('./routes/api/record'));
+app.use('/v1/auth', require('./routes/v1/auth'));
+app.use('/v1/operation', require('./routes/v1/operation'));
+app.use('/v1/records', require('./routes/v1/record'));
 app.all('*', (req, res) => {
     res.status(404);
     if (req.accepts('json')) {
