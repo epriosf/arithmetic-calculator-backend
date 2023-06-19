@@ -4,5 +4,4 @@ const operationControllers = require('../../controllers/operationController');
 
 router.post('/random-string', operationControllers.randomString);
 router.post('/math-operation', operationControllers.mathOperation);
-
 module.exports = router;
