@@ -10,7 +10,7 @@ const OperationSchema = Schema(
             unique: true,
         },
         cost: {
-            type: String,
+            type: Number,
             required: true,
         },
     },

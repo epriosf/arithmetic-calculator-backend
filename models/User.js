@@ -24,7 +24,7 @@ const UserSchema = Schema(
             required: false
         },
         user_balance: {
-            type: String,
+            type: Number,
             required: false
         },
         refresh_token: String
