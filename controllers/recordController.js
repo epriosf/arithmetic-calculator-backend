@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Record = require('../models/Record');
 
-async function createRecord(req, res) {
+const createRecord = async (req, res) => {
     const { operation_id, user_id, amount, user_balance, operation_response } = req.body;
 
     if (!operation_id || !user_id || !amount || !user_balance || !operation_response) {
@@ -16,7 +16,7 @@ async function createRecord(req, res) {
     }
 }
 
-async function findRecordsByUserId(req, res) {
+const findRecordsByUserId = async (req, res) => {
     try {
         const { user_id } = req.params;
         const page = parseInt(req.query.page) || 0;
@@ -64,7 +64,7 @@ async function findRecordsByUserId(req, res) {
     }
 }
 
-async function deleteRecordById(req, res) {
+const deleteRecordById = async (req, res) => {
     try {
         const recordIdString = req.params.record_id;
         const record_id = new mongoose.Types.ObjectId(recordIdString);
