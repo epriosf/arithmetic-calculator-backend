@@ -6,10 +6,12 @@ const RecordSchema = Schema(
     {
         operation_id: {
             type:  Schema.Types.ObjectId,
+            ref: 'Operation',
             required: true,
         },
         user_id: {
             type: Schema.Types.ObjectId,
+            ref: 'User',
             required: true,
         },
         amount: {

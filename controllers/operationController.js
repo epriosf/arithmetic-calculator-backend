@@ -2,8 +2,9 @@ const axios = require('axios');
 const Operation = require('../models/Operation');
 const math = require('mathjs');
 const { findUserByUsername, findUserAndUpdateBalance } = require('./userController');
+const { addRecord } = require('./recordController');
 
-const randomString = async (req, res) => {
+const generateRandomString = async (req, res) => {
   try {
     const { username, type } = req.body;
     const operation = await findOperation(type);
@@ -28,9 +29,9 @@ const randomString = async (req, res) => {
       id: 1,
     });
     const randomString = response.data.result.random.data[0]; // Extract the generated random string
-
     const userBalanceUpdated = (user.user_balance - operation.cost);
     await findUserAndUpdateBalance(user.username, userBalanceUpdated);
+    await addRecord(operation._id, user._id, operation.cost, userBalanceUpdated, randomString);
     res.json({ randomString });
   }
   catch (error) {
@@ -40,7 +41,7 @@ const randomString = async (req, res) => {
   }
 }
 
-const mathOperation = async (req, res) => {
+const calculateMathOperation = async (req, res) => {
   try {
     const { mathExpression, username } = req.body;
 
@@ -62,6 +63,7 @@ const mathOperation = async (req, res) => {
     const result = math.evaluate(mathExpression);
     const userBalanceUpdated = (user.user_balance - totalCost);
     await findUserAndUpdateBalance(user.username, userBalanceUpdated);
+    await addRecord(operations[0]._id, user._id, totalCost, userBalanceUpdated, result);
     res.json({ result });
   } catch (error) {
     const errorObject = handleOperationError(error, 'math');
@@ -107,6 +109,15 @@ const handleOperationError = (error, type) => {
       message: 'Failed to update user balance',
       status: 400,
     },
+    'Invalid record fields': {
+      message: 'Invalid record fields',
+      status: 400,
+    },
+    'Threre was a problem. Record was not register': {
+      message: 'Record was not register',
+      status: 400,
+    },
+
   };
   if (type === 'math') {
     errorMessages['Failed to find Operations'] = {
@@ -131,4 +142,4 @@ const handleOperationError = (error, type) => {
   return errorObject;
 }
 
-module.exports = { mathOperation, randomString };
+module.exports = { calculateMathOperation, generateRandomString };
