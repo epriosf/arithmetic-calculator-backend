@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
 const Record = require('../models/Record');
+const RecordTransformer = require('../utils/RecordTransformer');
 
 const createRecord = async (req, res) => {
-    const { operation_id, user_id, amount, user_balance, operation_response } = req.body;
 
+    const { operation_id, user_id, amount, user_balance, operation_response } = req.body;
     if (!operation_id || !user_id || !amount || !user_balance || !operation_response) {
         return res.status(422).json({ message: 'Invalid record fields' });
     }
@@ -13,6 +14,16 @@ const createRecord = async (req, res) => {
         return res.sendStatus(201);
     } catch (error) {
         return res.status(400).json({ message: 'Threre was a problem. Record was not register' });
+    }
+}
+const addRecord = async (operation_id, user_id, amount, user_balance, operation_response) => {
+    if (!operation_id || !user_id || !amount || !user_balance || !operation_response) {
+        throw new Error('Invalid record fields');
+    }
+    try {
+        await Record.create({ operation_id, user_id, amount, user_balance, operation_response });
+    } catch (error) {
+        throw new Error('Threre was a problem. Record was not register');
     }
 }
 
@@ -46,18 +57,20 @@ const findRecordsByUserId = async (req, res) => {
 
             query.$or = isNaN(parseInt(searchText)) ? stringOrConditions : numericOrConditions;
         }
-
         const records = await Record.find(query)
             .sort(sortOptions)
             .limit(limit)
-            .skip(limit * page);
+            .skip(limit * page)
+            .populate('operation_id', 'type')
+            .populate('user_id', 'username');
 
         const total_records = searchText ? records.length : await Record.countDocuments({ is_deleted: false });
 
         if (!records && !total_records) {
             return res.status(400).json({ message: 'Records not found' });
         }
-        res.json({ records, total_records });
+        const transformedRecords = RecordTransformer.transformRecords(records);
+        res.json({ records: transformedRecords, total_records });
     }
     catch (error) {
         return res.status(500).json({ error: 'Failed to fetch records' });
@@ -84,4 +97,5 @@ const deleteRecordById = async (req, res) => {
 
 }
 
-module.exports = { findRecordsByUserId, deleteRecordById, createRecord };
+module.exports = { findRecordsByUserId, deleteRecordById, createRecord, addRecord };
+
