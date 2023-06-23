@@ -14,6 +14,7 @@ const OperationSchema = Schema(
             required: true,
         },
     },
+    { versionKey: false }
 );
 
 module.exports = mongoose.model('Operation', OperationSchema);
