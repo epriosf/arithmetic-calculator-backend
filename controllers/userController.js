@@ -1,25 +1,31 @@
-const User = require('../models/User');
+const userService = require('../services/userService');
 
-const findUserByUsername = async (username) => {
-    const user = await User.findOne({ username }).select('-password -refresh_token -status -__v');;
-    if (!user) {
-        throw new Error('User not found');
+const findUserByUsername = async (req, res) => {
+    const { username } = req.body;
+    if (!username) {
+        return res.status(422).json({ message: 'Invalid username field' });
     }
-    return user;
+    try {
+        const user = await userService.findUserByUsername(username);
+        res.json({ user });
+    }
+    catch (error) {
+        return res.status(400).json({ message: error.message });
+    }
+
 }
 
-const findUserAndUpdateBalance = async (username, userBalanceUpdated) => {
+const findUserAndUpdateBalance = async (req, res) => {
+    const { username, userBalanceUpdated } = req.body;
+    if (!username || !userBalanceUpdated) {
+        return res.status(422).json({ message: 'Invalid User fields' });
+    }
     try {
-        const user = await User.findOneAndUpdate(
-            { username: username },
-            { $set: { user_balance: userBalanceUpdated } },
-            { new: true }
-        ).select('-password -refresh_token -status -__v');
-        if (!user) {
-            throw new Error('User not found');
-        }
-    } catch (error) {
-        throw new Error('Failed to update user balance');
+        await userService.findUserAndUpdateBalance(username, userBalanceUpdated);
+        res.status(200).json({ message: 'User balance was updated' });
+    }
+    catch (error) {
+        return res.status(400).json({ message: error.message });
     }
 }
 

@@ -1,29 +1,17 @@
 const mongoose = require('mongoose');
-const Record = require('../models/Record');
-const RecordTransformer = require('../utils/RecordTransformer');
+const recordHelper = require('../helpers/recordHelper');
+const recordService = require('../services/recordService');
 
 const createRecord = async (req, res) => {
-
     const { operation_id, user_id, amount, user_balance, operation_response } = req.body;
     if (!operation_id || !user_id || !amount || !user_balance || !operation_response) {
         return res.status(422).json({ message: 'Invalid record fields' });
     }
-
     try {
-        await Record.create({ operation_id, user_id, amount, user_balance, operation_response });
-        return res.sendStatus(201);
+        await recordService.createRecord(operation_id, user_id, amount, user_balance, operation_response);
+        res.sendStatus(201);
     } catch (error) {
-        return res.status(400).json({ message: 'Threre was a problem. Record was not register' });
-    }
-}
-const addRecord = async (operation_id, user_id, amount, user_balance, operation_response) => {
-    if (!operation_id || !user_id || !amount || !user_balance || !operation_response) {
-        throw new Error('Invalid record fields');
-    }
-    try {
-        await Record.create({ operation_id, user_id, amount, user_balance, operation_response });
-    } catch (error) {
-        throw new Error('Threre was a problem. Record was not register');
+        return res.status(400).json({ message: error.message });
     }
 }
 
@@ -47,33 +35,26 @@ const findRecordsByUserId = async (req, res) => {
             is_deleted: false,
         }
         if (searchText) {
-            const stringOrConditions = [
-                { operation_response: { $regex: searchText, $options: 'i' } },
-            ];
-            const numericOrConditions = [
-                { amount: { $eq: parseInt(searchText) } },
-                { user_balance: { $eq: parseInt(searchText) } },
-            ];
+            const searchTextRegex = new RegExp(searchText, 'i');
+            const numericSearchText = parseInt(searchText);
 
-            query.$or = isNaN(parseInt(searchText)) ? stringOrConditions : numericOrConditions;
+            query.$or = [
+                { operation_response: searchTextRegex },
+                { amount: numericSearchText },
+                { user_balance: numericSearchText },
+            ];
         }
-        const records = await Record.find(query)
-            .sort(sortOptions)
-            .limit(limit)
-            .skip(limit * page)
-            .populate('operation_id', 'type')
-            .populate('user_id', 'username');
-
-        const total_records = searchText ? records.length : await Record.countDocuments({ is_deleted: false });
+        const records = await recordService.findRecordsByUserId(query, sortOptions, limit, page);
+        const total_records = searchText ? records.length : await recordService.getTotalRecords();
 
         if (!records && !total_records) {
             return res.status(400).json({ message: 'Records not found' });
         }
-        const transformedRecords = RecordTransformer.transformRecords(records);
+        const transformedRecords = recordHelper.transformRecords(records);
         res.json({ records: transformedRecords, total_records });
     }
     catch (error) {
-        return res.status(500).json({ error: 'Failed to fetch records' });
+        return res.status(500).json({ error: error.message });
     }
 }
 
@@ -85,17 +66,17 @@ const deleteRecordById = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(record_id)) {
             return res.status(400).json({ error: 'Invalid record ID' });
         }
-        const updatedRecord = await Record.findByIdAndUpdate(record_id, { is_deleted: true, updated_at: Date.now }, { new: true });
+        const updatedRecord = await recordService.deleteRecordById(record_id);
         if (!updatedRecord) {
             return res.status(404).json({ error: 'Record not found' });
         }
         res.json(updatedRecord);
     }
     catch (error) {
-        return res.status(500).json({ error: 'Failed to delete the record' });
+        return res.status(500).json({ error: error.message });
     }
 
 }
 
-module.exports = { findRecordsByUserId, deleteRecordById, createRecord, addRecord };
+module.exports = { findRecordsByUserId, deleteRecordById, createRecord };
 

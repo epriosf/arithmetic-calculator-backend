@@ -17,12 +17,12 @@ async function register(req, res) {
         return res.status(409).json({message:'Username already exists'});
     }
     try {
-        hashedpassword = await bcrypt.hash(password, 10);
+        const hashedpassword = await bcrypt.hash(password, 10);
 
         await User.create({ username, password: hashedpassword, status });
-        return res.sendStatus(201);
+        res.sendStatus(201);
     } catch (error) {
-        return res.status(400).json({ message: 'Threre was a problem. user was not register' });
+        return res.status(400).json({ message: 'User was not register' });
     }
 
 }
@@ -30,7 +30,7 @@ async function login(req, res) {
     const { username, password} = req.body;
 
     if (!username || !password) {
-        return res.status(422).json({ message: 'invalid user fields' });
+        return res.status(422).json({ message: 'Invalid user fields' });
     }
 
     const user = await User.findOne({ username });

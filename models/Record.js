@@ -33,7 +33,8 @@ const RecordSchema = Schema(
             createdAt: 'created_at',
             updatedAt: 'updated_at'
         }
-    }
+    },
+    { versionKey: false }
 );
 
 module.exports = mongoose.model('Record', RecordSchema);
